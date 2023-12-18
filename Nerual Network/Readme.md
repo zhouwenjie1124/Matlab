@@ -31,11 +31,11 @@ This code example demonstrates the prediction performance of Feedforward Nonline
 
 These are two images of neural network structures created in Matlab.
 
-![Feedforward NAR Network](Comparison%20of%20Feedforward%20NAR%20and%20RBF%20Neural%20Netwo%20f4bd0670851d4c38815ce57802add4b9/Screenshot_2023-11-12_at_21.02.06.png)
+![Feedforward NAR Network](Images/Screenshot_2023-11-12_at_21.02.06.png)
 
 Feedforward NAR Network
 
-![RBF Network](Comparison%20of%20Feedforward%20NAR%20and%20RBF%20Neural%20Netwo%20f4bd0670851d4c38815ce57802add4b9/Screenshot_2023-11-12_at_15.22.24.png)
+![RBF Network](Images/Screenshot_2023-11-12_at_15.22.24.png)
 
 RBF Network
 
