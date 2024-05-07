@@ -1,0 +1,243 @@
+%% Load data and initialize
+% Here you can load other fault data. However, the data loaded below is
+% with the most prominent fault features.
+% load('normal_0.mat')
+% load('IR021_0.mat')
+% load('OR007@6_0.mat')
+% load('B028_0.mat')
+load('normal_0.mat')
+load('IR007_0.mat')
+load('OR014@6_0.mat')
+load('B007_0.mat')
+SR = 12000; %Sample rate
+Fr = 1797/60; %Rotary frequency
+BPFO = 3.5848*Fr;
+BSF = 2.3567*Fr;
+BPFI = 5.4152*Fr;
+FTF = 0.3983*Fr;
+Tn = round(1/Fr*SR); %Points that lasts a mechanical cycle
+% Here the signals are chosen. You can use DE/BA/FE data.
+Signal_N = X097_DE_time; EnvSignal_N = abs(hilbert(Signal_N));
+Signal_IR = X209_DE_time; EnvSignal_IR = abs(hilbert(Signal_IR));
+Signal_OR = X130_DE_time; EnvSignal_OR = abs(hilbert(Signal_OR));
+Signal_B = X048_DE_time; EnvSignal_B = abs(hilbert(Signal_B));
+X = [Signal_N(1:120000) Signal_IR(1:120000) Signal_OR(1:120000) Signal_B(1:120000)];
+EnvX = [EnvSignal_N(1:120000) EnvSignal_IR(1:120000) EnvSignal_OR(1:120000) EnvSignal_B(1:120000)];
+
+%% Time waveform
+S = round(1/(FTF)*SR*3); %Points that last three FTFs
+t = 0:1/SR:1/SR*(S-1);
+figure(1)
+T1 = tiledlayout(4,1,'TileSpacing','Compact','Padding','Compact');
+Title = {'Normal','Inner race fault','Outer race fault','Ball fault'};
+for i = 1:4
+    nexttile
+    plot(t,X(1:S,i), t,EnvX(1:S,i));
+    ylim([-10, 10])
+    xlim([t(1), t(S)])
+    title(Title{i})
+    if i == 1
+        legend('Raw signal','envelope','box','off','NumColumns',2)
+    else
+    end
+end
+xlabel(T1, 'Time (s)')
+ylabel(T1, 'Amplitude')
+set(gcf,'unit','normalized','position',[0.1,0.1,0.3,0.6]);
+
+%% Envelope spctra
+S = 4000; %Points for FFT
+Freq = (0:(S/2-1))/((S/2-1))*(SR/2);%Frequency resolution is SR/S = 12000/4000 = 3 Hz;
+figure(2)
+T2 = tiledlayout(4,1,'TileSpacing','Compact','Padding','Compact');
+for i = 1:4
+    FreqAmpEnv = 2*abs(fft(EnvX(1:S,i)-mean(EnvX(1:S,i))))/S;
+    nexttile
+    plot(Freq,FreqAmpEnv(1:S/2))
+    xlim([0 600])
+    title(Title{i})
+    switch i
+        case 1
+            f1 = xline(Fr,'-.','color',[0.7 0.7 0.7]); xline(2*Fr,'-.','color',[0.7 0.7 0.7]); hold on
+            legend(f1,'\itf_r \rmand 2\itf_r','box','off','NumColumns',2)
+        case 2
+            f1 = xline(Fr,'-.','color',[0.7 0.7 0.7]); xline(2*Fr,'-.','color',[0.7 0.7 0.7]); hold on
+            f3 = xline(BPFI,':g'); xline(BPFI*2,':g'); xline(BPFI*3,':g');
+            f2 = xline(BPFI+Fr,'--m'); xline(BPFI-Fr,'--m'); xline(2*BPFI+Fr,'--m'); xline(2*BPFI-Fr,'--m');
+            xline(3*BPFI+Fr,'--m'); xline(3*BPFI-Fr,'--m');
+            legend([f1,f2,f3],'\itf_r \rmand 2\itf_r','\itn\rmBPFI±\itf_r, n\rm=1,2,3 ','\itn\rmBPFI','box','off','NumColumns',2)
+        case 3
+            f1 = xline(Fr,'-.','color',[0.7 0.7 0.7]); xline(2*Fr,'-.','color',[0.7 0.7 0.7]); hold on
+            f2 = xline(BPFO,':g'); xline(BPFO*2,':g'); xline(BPFO*3,':g'); xline(BPFO*4,':g'); xline(BPFO*5,':g');
+            legend([f1,f2],'\itf_r \rmand 2\itf_r','\itn\rmBPFO, n\rm=1,2,3,4,5 ','box','off','NumColumns',2)
+        case 4
+            f1 = xline(Fr,'-.','color',[0.7 0.7 0.7]); xline(2*Fr,'-.','color',[0.7 0.7 0.7]); hold on
+            f3 = xline(2*BSF,':g'); xline(4*BSF,':g'); xline(6*BSF,':g'); xline(8*BSF,':g');
+            f2 = xline(2*BSF+FTF,'--m'); xline(2*BSF-FTF,'--m'); xline(4*BSF+FTF,'--m'); xline(4*BSF-FTF,'--m');
+            xline(6*BSF+FTF,'--m'); xline(6*BSF-FTF,'--m'); xline(8*BSF+FTF,'--m'); xline(8*BSF-FTF,'--m');
+            legend([f1,f2,f3],'\itf_r \rmand 2\itf_r','2\itn\rmBSF±FTF, n\rm=1,2,3,4 ','2\itn\rmBSF','box','off','NumColumns',2)
+    end
+end
+xlabel(T2, 'Frequency (Hz)')
+ylabel(T2, 'Amplitude')
+set(gcf,'unit','normalized','position',[0.1,0.1,0.3,0.6]);
+
+%% Manual feature extraction
+S = 4000; %Points of a sample
+
+PP = []; RMS = []; SK = []; KU = []; SH = []; IM = []; CR = []; CL = [];
+F1 = []; F2 = [];
+IN1 = []; IN2 = []; IN3 = [];
+INSBs1 = []; INSBs2 = []; INSBs3 = [];
+OU1 = []; OU2 = []; OU3 = []; OU4 = [];
+BA1 = []; BA2 = []; BA3 = []; BA4 = [];
+FC = [];
+
+FreqAmpX = [];
+X1 = Signal_N; X2 = Signal_IR; X3 = Signal_OR; X4 = Signal_B;
+FR = SR/S; %Frequency resolution;
+% Calculate the orders of feature frequencies in envelope spectra  vector
+F_F1 = round(1*Fr/FR); F_F2 = round(2*Fr/FR);
+F_IN1 = round(1*BPFI/FR); F_IN2 = round(2*BPFI/FR); F_IN3 = round(3*BPFI/FR);
+F_INSBs1 = round([1*BPFI-Fr, 1*BPFI+Fr]/FR); F_INSBs2 = round([2*BPFI-Fr, 2*BPFI+Fr]/FR); F_INSBs3 = round([3*BPFI-Fr, 3*BPFI+Fr]/FR);
+F_OU1 = round(1*BPFO/FR); F_OU2 = round(2*BPFO/FR); F_OU3 = round(3*BPFO/FR); F_OU4 = round(4*BPFO/FR);
+F_BA1 = round(1*2*BSF/FR); F_BA2 = round(2*2*BSF/FR); F_BA3 = round(3*2*BSF/FR); F_BA4 = round(4*2*BSF/FR);
+
+for i = 1:30
+    n = 1+(i-1)*S:i*S;
+    PP = [PP; [peak2peak(X1(n)) peak2peak(X2(n)) peak2peak(X3(n)) peak2peak(X4(n))]];
+    RMS = [RMS; [rms(X1(n)) rms(X2(n)) rms(X3(n)) rms(X4(n))] ];
+    SH = [SH; [ShapeIndicator(X1(n)) ShapeIndicator(X2(n)) ShapeIndicator(X3(n)) ShapeIndicator(X4(n))] ];
+    IM = [IM; [ImpulseIndicator(X1(n)) ImpulseIndicator(X2(n)) ImpulseIndicator(X3(n)) ImpulseIndicator(X4(n))] ];
+    CR = [CR; [CrestIndicator(X1(n)) CrestIndicator(X2(n)) CrestIndicator(X3(n)) CrestIndicator(X4(n))] ];
+    CL = [CL; [ClearanceIndicator(X1(n)) ClearanceIndicator(X2(n)) ClearanceIndicator(X3(n)) ClearanceIndicator(X4(n))] ];
+    SK = [SK; [skewness(X1(n)) skewness(X2(n)) skewness(X3(n)) skewness(X4(n))] ];
+    KU = [KU; [kurtosis(X1(n)) kurtosis(X2(n)) kurtosis(X3(n)) kurtosis(X4(n))] ];
+    
+    FreqAmpX1 = 2*abs(fft(abs(hilbert(X1(n))),S))/S;
+    FreqAmpX2 = 2*abs(fft(abs(hilbert(X2(n))),S))/S;
+    FreqAmpX3 = 2*abs(fft(abs(hilbert(X3(n))),S))/S;
+    FreqAmpX4 = 2*abs(fft(abs(hilbert(X4(n))),S))/S;
+  
+    F1 = [F1; [sum(FreqAmpX1(F_F1)) sum(FreqAmpX2(F_F1)) sum(FreqAmpX3(F_F1)) sum(FreqAmpX4(F_F1))]];
+    F2 = [F2; [sum(FreqAmpX1(F_F2)) sum(FreqAmpX2(F_F2)) sum(FreqAmpX3(F_F2)) sum(FreqAmpX4(F_F2))]];
+    IN1 = [IN1; [sum(FreqAmpX1(F_IN1)) sum(FreqAmpX2(F_IN1)) sum(FreqAmpX3(F_IN1)) sum(FreqAmpX4(F_IN1))]];
+    IN2 = [IN2; [sum(FreqAmpX1(F_IN2)) sum(FreqAmpX2(F_IN2)) sum(FreqAmpX3(F_IN2)) sum(FreqAmpX4(F_IN2))]];
+    IN3 = [IN3; [sum(FreqAmpX1(F_IN3)) sum(FreqAmpX2(F_IN3)) sum(FreqAmpX3(F_IN3)) sum(FreqAmpX4(F_IN3))]];
+    INSBs1 = [INSBs1; [sum(FreqAmpX1(F_INSBs1)) sum(FreqAmpX2(F_INSBs1)) sum(FreqAmpX3(F_INSBs1)) sum(FreqAmpX4(F_INSBs1))]];
+    INSBs2 = [INSBs2; [sum(FreqAmpX1(F_INSBs2)) sum(FreqAmpX2(F_INSBs2)) sum(FreqAmpX3(F_INSBs2)) sum(FreqAmpX4(F_INSBs2))]];
+    INSBs3 = [INSBs3; [sum(FreqAmpX1(F_INSBs3)) sum(FreqAmpX2(F_INSBs3)) sum(FreqAmpX3(F_INSBs3)) sum(FreqAmpX4(F_INSBs3))]];
+    OU1 = [OU1; [sum(FreqAmpX1(F_OU1)) sum(FreqAmpX2(F_OU1)) sum(FreqAmpX3(F_OU1)) sum(FreqAmpX4(F_OU1))]];
+    OU2 = [OU2; [sum(FreqAmpX1(F_OU2)) sum(FreqAmpX2(F_OU2)) sum(FreqAmpX3(F_OU2)) sum(FreqAmpX4(F_OU2))]];
+    OU3 = [OU3; [sum(FreqAmpX1(F_OU3)) sum(FreqAmpX2(F_OU3)) sum(FreqAmpX3(F_OU3)) sum(FreqAmpX4(F_OU3))]];
+    OU4 = [OU4; [sum(FreqAmpX1(F_OU4)) sum(FreqAmpX2(F_OU4)) sum(FreqAmpX3(F_OU4)) sum(FreqAmpX4(F_OU4))]];
+    BA1 = [BA1; [sum(FreqAmpX1(F_BA1)) sum(FreqAmpX2(F_BA1)) sum(FreqAmpX3(F_BA1)) sum(FreqAmpX4(F_BA1))]];
+    BA2 = [BA2; [sum(FreqAmpX1(F_BA2)) sum(FreqAmpX2(F_BA2)) sum(FreqAmpX3(F_BA2)) sum(FreqAmpX4(F_BA2))]];
+    BA3 = [BA3; [sum(FreqAmpX1(F_BA3)) sum(FreqAmpX2(F_BA3)) sum(FreqAmpX3(F_BA3)) sum(FreqAmpX4(F_BA3))]];
+    BA4 = [BA4; [sum(FreqAmpX1(F_BA4)) sum(FreqAmpX2(F_BA4)) sum(FreqAmpX3(F_BA4)) sum(FreqAmpX4(F_BA4))]];
+    
+    FC = [FC; [sum((1:S/2)'.*FreqAmpX1(1:S/2))/sum(FreqAmpX1(1:S/2))...
+        sum((1:S/2)'.*FreqAmpX2(1:S/2))/sum(FreqAmpX2(1:S/2))...
+        sum((1:S/2)'.*FreqAmpX3(1:S/2))/sum(FreqAmpX3(1:S/2))...
+        sum((1:S/2)'.*FreqAmpX4(1:S/2))/sum(FreqAmpX4(1:S/2))]];
+end
+
+%% Boxplot
+FeatureNameTime = {'PP','RMS','SH','IM','CR','CL','SK','KU'};
+FeatureNameFreq = {'F1','F2','IN1','IN2','IN3','INSBs1','INSBs2','INSBs3','OU1','OU2','OU3','OU4','BA1','BA2','BA3','BA4','FC'};
+figure (3)
+T3 = tiledlayout(4,2,'TileSpacing','Compact','Padding','Compact');
+for i = 1:length(FeatureNameTime)
+    nexttile
+    BPself(eval(FeatureNameTime{i}),FeatureNameTime{i}) %BPself is a function for boxplot
+end
+set(gcf,'unit','normalized','position',[0.1,0.1,0.3,0.6]);
+
+figure (4)
+T4 = tiledlayout(6,3,'TileSpacing','Compact','Padding','Compact');
+for i = 1:length(FeatureNameFreq)
+    nexttile
+    BPself(eval(FeatureNameFreq{i}),FeatureNameFreq{i})
+end
+set(gcf,'unit','normalized','position',[0.1,0.1,0.3,0.7]);
+
+%% Feature normalization
+X = [];
+for i = 1:4 %Form a 120×25 matrix. Every 30 rows is features of the sam label; 25 features.
+    X = [X; PP(:,i),RMS(:,i),SK(:,i),KU(:,i),SH(:,i),IM(:,i),CR(:,i),CL(:,i),...
+        F1(:,i),F2(:,i),IN1(:,i),IN2(:,i),IN3(:,i),INSBs1(:,i),INSBs2(:,i),INSBs3(:,i),...
+        OU1(:,i),OU2(:,i),OU3(:,i),OU4(:,i),BA1(:,i),BA2(:,i),BA3(:,i),BA4(:,i),FC(:,i)];
+end
+XNorm = [];
+for i = 1:size(X,2) %normalize every column of X
+    XNorm = [XNorm, normalize(X(:,i))];
+end
+figure (5)
+tiledlayout(1,1,'TileSpacing','Compact','Padding','Compact');
+nexttile
+imagesc(XNorm)
+yticks((0:30:120)+15)
+yticklabels({'N','IR','OR','B'})
+xticks(1:1:25)
+xticklabels([FeatureNameTime FeatureNameFreq])
+set(gcf,'unit','normalized','position',[0.1,0.1,0.3,0.6]);
+set(gca,'XTickLabelRotation',90)
+
+Label = [ones(30,1); 2*ones(30,1); 3*ones(30,1); 4*ones(30,1)];
+
+%% PCA 2D dimention reduction and visualization
+[U, Sigma, V] = svd(XNorm);
+Vr = V(:, 1:2);
+Tr = XNorm * Vr; 
+LabelName = {'N','IR','OR','B'};
+figure (6)
+tiledlayout(1,1,'TileSpacing','Compact','Padding','Compact');
+nexttile
+gscatter(Tr(:,1),Tr(:,2),Label,'gkbr')
+xlabel('First principal component')
+ylabel('Second principal component')
+legend(LabelName)
+set(gcf,'unit','normalized','position',[0.1,0.1,0.3,0.4]);
+
+%% t-SNE 2D dimention reduction and visualization
+L = [ones(30,1); 2*ones(30,1); 3*ones(30,1); 4*ones(30,1)];
+rng default %default seed,for reproducibility
+YEX0 = tsne(XNorm); %default distance
+figure (7)
+tiledlayout(1,1,'TileSpacing','Compact','Padding','Compact');
+nexttile
+gscatter(YEX0(:,1),YEX0(:,2),Label,'gkbr')
+legend(LabelName)
+set(gcf,'unit','normalized','position',[0.1,0.1,0.3,0.4]);
+
+%% diagnosis through SVM
+n_test = 20; %run n_test times
+tic
+[AcR1Sum,AcR2Sum,AcR3Sum,AcR4Sum] = MySVM(n_test,XNorm,Label,LabelName);
+toc
+Accuracy_SVM = [AcR1Sum, AcR2Sum, AcR3Sum, AcR4Sum];
+
+%% diagnosis through DT
+n_test = 20;
+tic
+[AcR1Sum,AcR2Sum,AcR3Sum,AcR4Sum] = MyDT(n_test,XNorm,Label,LabelName);
+toc
+
+Accuracy_DT = [AcR1Sum, AcR2Sum, AcR3Sum, AcR4Sum];
+
+%% Accuracy comparison
+figure
+xAxis = 1:4;
+b = bar(xAxis, [Accuracy_SVM; Accuracy_DT]);
+ylim([min([Accuracy_SVM Accuracy_DT])-0.01 1.005])
+for i = 1:2
+    xtips = b(i).XEndPoints; ytips = b(i).YEndPoints; %get the attributes XEndPoints and YEndPoints of Bar
+    labels = strcat(string(b(i).YData*100)', '%'); %get the value of Bar
+    text(xtips, ytips, labels, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');%display value in right position
+end
+ylabel('Accuracy')
+set(gcf,'unit','normalized','position',[0.1,0.1,0.35,0.4]);
+set(gca,'ytick',0.98:0.01:1);
+set(gca,'yticklabel',{'98%','99%','100%'});
+set(gca,'XtickLabel',{'N','IR','OR','B'})
+legend('SVM','DT')
